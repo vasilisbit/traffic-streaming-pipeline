@@ -64,13 +64,14 @@
    {\Large\bfseries Επεξεργασία Δεδομένων Ροής με Kafka, Spark και MongoDB}\\[4pt]
    {\small Project Εαρινού Εξαμήνου 2026 \textbar{} Συστήματα Διαχείρισης Μεγάλων Δεδομένων}\\[2pt]
    {\small Τμήμα Μηχανικών Η/Υ και Πληροφορικής, Πανεπιστήμιο Πατρών}\\[2pt]
-   {\small Βασίλειος Μπίτζας \textbar{} Μάιος 2026}
+   {\small Βασίλειος Μπίτζας \textbar{} Μάιος 2026}\\[2pt]
+   {\small MachineGuid: \code{dde89f75-f5fd-4256-b226-cab61dbc0161}}
 \end{center}
-\vspace{2pt}\hrule\vspace{6pt}
+\vspace{3pt}\hrule\vspace{6pt}
 
 % ====================== §1 Introduction ======================
 \section{Εισαγωγή}
-Η εργασία υλοποιεί ένα ολοκληρωμένο pipeline ανάλυσης ροής δεδομένων κυκλοφορίας. Δεδομένα οχημάτων που παράγονται από τον προσομοιωτή UXSIM \citep{seo2023UXSIM} αποστέλλονται σε έναν Kafka-συμβατό broker (Redpanda) \citep{kreps2011kafka, redpanda2024}, καταναλώνονται σε πραγματικό χρόνο από Spark Structured Streaming \citep{armbrust2018structured} και αποθηκεύονται τόσο σε ακατέργαστη όσο και σε συγκεντρωτική μορφή σε MongoDB \citep{chodorow2013mongodb, fowler2013nosql}. Όλη η στοίβα τρέχει τοπικά μέσω Docker Compose με μία εντολή (\code{docker compose up -d}).
+Η εργασία υλοποιεί ένα ολοκληρωμένο pipeline ανάλυσης ροής δεδομένων κυκλοφορίας. Δεδομένα οχημάτων που παράγονται από τον προσομοιωτή UXSIM αποστέλλονται σε έναν Kafka-συμβατό broker (Redpanda), καταναλώνονται σε πραγματικό χρόνο από Spark Structured Streaming και αποθηκεύονται τόσο σε ακατέργαστη όσο και σε συγκεντρωτική μορφή σε MongoDB. Όλη η στοίβα τρέχει τοπικά μέσω Docker Compose με μία εντολή (\code{docker compose up -d}) για τα 6 βασικά services, ή με ενεργοποίηση όλων των profiles ώστε να σηκωθούν επιπλέον το REST API και το dashboard: \code{docker compose --profile api --profile dashboard up -d}.
 
 Η παρούσα αναφορά καλύπτει τα τρία ζητούμενα ερωτήματα της εκφώνησης (παραγωγή προς Redpanda, επεξεργασία με Spark, αποθήκευση σε MongoDB) και επιπλέον τρία bonus που υλοποιήθηκαν: (i) windowed aggregations 30 δευτερολέπτων με min/max ταχύτητα ανά link, (ii) REST API με FastAPI πάνω από τη MongoDB και (iii) Streamlit dashboard με ζωντανό χάρτη δικτύου σε Plotly.
 
@@ -127,7 +128,7 @@
 \label{tab:containers}
 \end{table}
 
-\textbf{Δικαιολόγηση επιλογών.} Επιλέχθηκε ο Redpanda αντί για κλασική εγκατάσταση Kafka γιατί είναι μονό binary χωρίς JVM/ZooKeeper, μειώνοντας τους πόρους και τον χρόνο εκκίνησης ενώ διατηρεί πλήρη συμβατότητα στο wire protocol \citep{redpanda2024}. Για το streaming layer προτιμήθηκε το Spark Structured Streaming \citep{armbrust2018structured} αντί για το παλαιότερο Spark Streaming/DStreams \citep{zaharia2013spark}, καθώς προσφέρει δηλωτικό DataFrame API και exactly-once σημασιολογία στους sinks. Η MongoDB διαλέχθηκε ως document store γιατί το payload του UXSIM είναι ήδη ημι-δομημένο JSON και δεν απαιτεί ρητό σχήμα στη βάση \citep{chodorow2013mongodb, fowler2013nosql}.
+\textbf{Δικαιολόγηση επιλογών.} Επιλέχθηκε ο Redpanda αντί για κλασική εγκατάσταση Kafka γιατί είναι μονό binary χωρίς JVM/ZooKeeper, μειώνοντας τους πόρους και τον χρόνο εκκίνησης ενώ διατηρεί πλήρη συμβατότητα στο wire protocol. Για το streaming layer προτιμήθηκε το Spark Structured Streaming αντί για το παλαιότερο Spark Streaming/DStreams, καθώς προσφέρει δηλωτικό DataFrame API και exactly-once σημασιολογία στους sinks. Η MongoDB διαλέχθηκε ως document store γιατί το payload του UXSIM είναι ήδη ημι-δομημένο JSON και δεν απαιτεί ρητό σχήμα στη βάση.
 
 % ====================== §3 Design ======================
 \section{Σχεδιαστικές Αποφάσεις}
@@ -163,7 +164,7 @@
 \subsection{Bonus που υλοποιήθηκαν}
 \textbf{Windowed aggregations (30s).} Η \code{compute\_windowed\_stats} εφαρμόζει \code{withWatermark("t", "60 seconds")} και \code{window("t", "30 seconds")}, υπολογίζοντας \code{vcount}, \code{vspeed\_avg}, \code{vspeed\_min}, \code{vspeed\_max}. Το νεστάρισμα του struct ξεδιπλώνεται πριν το sink, ώστε τα έγγραφα της \code{stats\_windowed} να έχουν επίπεδα πεδία \code{window\_start} και \code{window\_end} (ευκολότερο indexing και query από REST).
 
-\textbf{REST API.} Το \code{serving/api.py} σε FastAPI εκθέτει \code{GET /health}, \code{GET /links/avg-speed}, \code{GET /links/top-congested?n=K} και \code{GET /links/\{name\}/timeline}. Ένα singleton \code{MongoClient} αρχικοποιείται μέσω lifespan event handler και γίνεται inject στους handlers με \code{Depends}.
+\textbf{REST API.} Το \code{serving/api.py} σε FastAPI εκθέτει \code{GET /health}, \code{GET /links/avg-speed}, \code{GET /links/top-congested?n=K} και \code{GET /links/\{link\_id\}}. Ένα singleton \code{MongoClient} αρχικοποιείται μέσω lifespan event handler και γίνεται inject στους handlers με \code{Depends}. Με ενεργό το \code{--profile api}, η αυτο-παραγόμενη διεπαφή Swagger UI είναι διαθέσιμη στο \url{http://localhost:8000/docs}, επιτρέποντας διαδραστική εκτέλεση κάθε endpoint από τον browser. Το \code{link\_id} είναι το όνομα ενός edge στο 4$\times$4 grid με μορφή \code{<origin><destination>}, π.χ.\ \code{I1W1}, \code{I3S3}, \code{N1I1}, \code{E1I4}, \code{I2I1} (όπου \code{I1..I4} οι εσωτερικές διασταυρώσεις και \code{N*/S*/E*/W*} οι συνοριακοί κόμβοι).
 
 \textbf{Streamlit dashboard.} Τρία tabs (Overview, Network map, Link detail) που διαβάζουν απευθείας από MongoDB μέσω της ίδιας \code{TrafficRepository}. Ο χάρτης είναι μία ζωντανή απεικόνιση Plotly του 4$\times$4 δικτύου με χρώμα ίσο με \code{vspeed} και πάχος γραμμής ίσο με \code{vcount}, με slider για historical playback.
 
@@ -172,7 +173,7 @@
 Η σουίτα unit tests (\code{tests/unit/}, pytest) καλύπτει τον parser, τα δύο aggregations, τον Kafka publisher με mocked broker και το repository με \code{MagicMock} (25 tests, δεν απαιτεί running stack). Η ολοκληρωτική επαλήθευση γίνεται από το \code{scripts/verify\_pipeline.py}, που εκτελεί τέσσερις ελέγχους: (1) όλα τα containers είναι Up, (2) το topic \code{UXSIM} υπάρχει, (3) η \code{raw\_data} γεμίζει, (4) η \code{stats} γεμίζει. Σε ενδεικτικό clean run διάρκειας λίγων λεπτών συγκεντρώθηκαν περίπου 590\,000 έγγραφα στη \code{raw\_data} και 7\,000 στη \code{stats}. Η ζητούμενη από την εκφώνηση συγκεντρωτική ερώτηση (μέση ταχύτητα ανά link) εκτελείται απευθείας στο \code{root terminal}:
 
 \begin{center}\small
-\code{docker exec mongo mongosh traffic --quiet --eval 'db.getCollection("stats").aggregate([{ \$group: { \_id: "\$link", avg\_speed: { \$avg: "\$vspeed" } } }, { \$sort: { avg\_speed: -1 } }]).toArray()'}
+\code{docker exec mongo mongosh traffic --quiet --eval 'db.getCollection(\textbackslash"stats\textbackslash").aggregate([\{ \$group: \{ \_id: \textbackslash"\$link\textbackslash", avg\_speed: \{ \$avg: \textbackslash"\$vspeed\textbackslash" \} \} \}, \{ \$sort: \{ avg\_speed: -1 \} \}]).toArray()'}
 \end{center}
 
 \subsection{Screenshots από την τοπική εκτέλεση}
@@ -241,6 +242,6 @@
 Παραδίδεται ένα πλήρες, αναπαραγώγιμο pipeline που εκκινείται με μία εντολή Docker Compose, καλύπτει και τα τρία ερωτήματα της εκφώνησης και επεκτείνει το ζητούμενο με windowed aggregations, REST API και dashboard. Πιθανές μελλοντικές βελτιώσεις: idempotent upserts στη \code{stats} με σύνθετο \code{\_id = (t, link)} για ασφαλή επανεκτέλεση, alerting όταν η \code{vspeed} ενός link πέφτει κάτω από κατώφλι, μετακίνηση των checkpoints από \code{/tmp/} σε named volume για επιβίωση μετά από restart του cluster, και παραμετροποίηση της τοπολογίας του δικτύου από YAML αντί από Python literal.
 
 % ====================== Bibliography ======================
-\bibliography{references}
+% \bibliography{references}
 
 \end{document}
