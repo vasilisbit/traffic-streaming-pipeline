@@ -9,7 +9,7 @@ description = "Streaming pipeline for vehicular traffic simulation data: UXSIM -
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "IBilba", email = "72385814+IBilba@users.noreply.github.com" }]
+authors = [{ name = "vasilisbit", email = "72385814+vasilisbit@users.noreply.github.com" }]
 keywords = ["streaming", "kafka", "redpanda", "spark", "mongodb", "uxsim", "traffic"]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -29,8 +29,8 @@ dependencies = []
 dev = ["pytest>=8", "pytest-mock>=3.14", "ruff>=0.6", "black>=24"]
 
 [project.urls]
-"Source" = "https://github.com/IBilba/traffic-streaming-pipeline"
-"Issues" = "https://github.com/IBilba/traffic-streaming-pipeline/issues"
+"Source" = "https://github.com/vasilisbit/traffic-streaming-pipeline"
+"Issues" = "https://github.com/vasilisbit/traffic-streaming-pipeline/issues"
 
 [project.scripts]
 # Console entry points installed when the package is `pip install -e .`'d.
