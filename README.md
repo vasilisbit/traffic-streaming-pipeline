@@ -45,7 +45,7 @@ Six containers run by default (`redpanda`, `topic-init` one-shot, `spark-master`
 **Clone and launch:**
 
 ```powershell
-git clone https://github.com/IBilba/traffic-streaming-pipeline.git
+git clone https://github.com/vasilisbit/traffic-streaming-pipeline.git
 cd traffic-streaming-pipeline
 copy .env.example .env          # adjust if needed
 docker compose up -d
